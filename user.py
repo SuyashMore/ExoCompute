@@ -5,6 +5,7 @@ import random
 from libs.adder import Adder  # Import the actual ComputeUnit class
 from libs.sub import Sub  # Import the actual ComputeUnit class
 from libs.mul import Mul  # Import the actual ComputeUnit class
+from libs.sqr import Sqr  # Import the actual ComputeUnit class
 
 
 ORCHESTRATOR_URL = "http://localhost:8000/submit_task"
@@ -16,11 +17,11 @@ results = [None] * len(arr1)
 RETRY_LIMIT = 1
 RETRY_DELAY = 1.0  # seconds
 
-UNIT_CLASS = Mul  # Swap this to any other ComputeUnit subclass if needed
+UNIT_CLASS = Sqr  # Swap this to any other ComputeUnit subclass if needed
 
 async def send_task(index, a, b, client):
     # Prepare input and serialize to dict
-    compute_input = UNIT_CLASS.Input(a=a, b=b)
+    compute_input = UNIT_CLASS.Input(a=a)
     payload = {
         "unit": UNIT_CLASS.__name__,
         "input": compute_input.model_dump()
