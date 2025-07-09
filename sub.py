@@ -1,78 +1,133 @@
-# sub.py
-
-import uvicorn
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
-import requests
-import threading
 import argparse
+import subprocess
+import threading
+import requests
 import time
-import random
-import logging
-from lib import add_numbers  # our compute logic
+import signal
+import sys
+from fastapi import FastAPI, Request
+import uvicorn
+from lib import add_numbers as add
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] SUB-%(name)s - %(message)s",
-    datefmt="%H:%M:%S"
-)
+# ---------------------
+# GLOBALS
+# ---------------------
+orchestrator_url = "http://localhost:8000"
+busy = False
+assigned_port = None
+shutdown_flag = False
+heartbeat_thread = None
 
-app_template = FastAPI()
-busy_status = {}
+# ---------------------
+# FASTAPI SETUP
+# ---------------------
+app = FastAPI()
 
-class ComputeRequest(BaseModel):
-    a: int
-    b: int
+@app.post("/compute")
+async def compute(request: Request):
+    global busy
+    data = await request.json()
+    a, b = data.get("a"), data.get("b")
+    print(f"[SUB] Received compute: add({a}, {b})")
+    busy = True
+    result = add(a, b)
+    busy = False
+    return {"result": result}
 
-def create_app(port):
+@app.get("/health")
+def health():
+    print(f"[SUB] Health check received. Busy: {busy}")
+    return {"status": "ok", "busy": busy}
 
-    app = FastAPI()
-    name = f"{port}"
-    busy_status[port] = False
 
-    @app.get("/health")
-    def health():
-        logging.info(f"[{name}] Health check received.")
-        return {"status": "ok"}
-
-    @app.post("/compute")
-    def compute(req: ComputeRequest):
-        if busy_status[port]:
-            return {"error": "Busy"}
-        logging.info(f"[{name}] Received compute: {req.a} + {req.b}")
-        busy_status[port] = True
-        try:
-            result = add_numbers(req.a, req.b)
-            return {"result": result}
-        finally:
-            busy_status[port] = False
-
-    return app
-
-def launch_instance(index):
+# ---------------------
+# REGISTRATION
+# ---------------------
+def register_with_orchestrator():
     try:
-        # Register with orchestrator
-        r = requests.post("http://localhost:8000/register", json={})
-        r.raise_for_status()
-        data = r.json()
-        port = data["port"]
-        logging.info(f"Subscriber-{index} launched at port {port}")
-        app = create_app(port)
-        uvicorn.run(app, host="localhost", port=port)
+        r = requests.get(f"{orchestrator_url}/get_port")
+        port = r.json().get("port")
+        print(f"[SUB] Got assigned port: {port}")
+        return port
     except Exception as e:
-        logging.error(f"Failed to launch Subscriber-{index}: {e}")
+        print(f"[SUB] Registration failed: {e}")
+        return None
 
-def main():
+def unregister():
+    if assigned_port:
+        try:
+            requests.post(f"{orchestrator_url}/unregister", json={"port": assigned_port})
+            print(f"[SUB] Unregistered from orchestrator (port {assigned_port})")
+        except Exception as e:
+            print(f"[SUB] Failed to unregister: {e}")
+
+
+# ---------------------
+# HEARTBEAT
+# ---------------------
+def heartbeat():
+    while not shutdown_flag:
+        try:
+            requests.post(f"{orchestrator_url}/health_check", json={"port": assigned_port})
+        except Exception as e:
+            print(f"[SUB] Heartbeat failed: {e}")
+        time.sleep(5)
+
+
+# ---------------------
+# CLEAN SHUTDOWN HANDLER
+# ---------------------
+def handle_exit(signum, frame):
+    global shutdown_flag
+    shutdown_flag = True
+    print("\n[SUB] Caught shutdown signal, cleaning up...")
+    unregister()
+    sys.exit(0)
+
+
+# ---------------------
+# MAIN SUBSCRIBER LAUNCH
+# ---------------------
+def start_subscriber():
+    global assigned_port, heartbeat_thread
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
+
+    assigned_port = register_with_orchestrator()
+    if not assigned_port:
+        print("[SUB] No port assigned. Exiting.")
+        return
+
+    heartbeat_thread = threading.Thread(target=heartbeat, daemon=True)
+    heartbeat_thread.start()
+
+    uvicorn.run(app, host="0.0.0.0", port=assigned_port)
+
+
+# ---------------------
+# MULTI-LAUNCH
+# ---------------------
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--count", type=int, default=1, help="Number of subscriber instances to spawn")
+    parser.add_argument("--count", type=int, default=1)
     args = parser.parse_args()
 
-    for i in range(args.count):
-        threading.Thread(target=launch_instance, args=(i,), daemon=True).start()
+    if args.count == 1:
+        start_subscriber()
+    else:
+        processes = []
+        for _ in range(args.count):
+            proc = subprocess.Popen(["python", "sub.py"])
+            processes.append(proc)
 
-    # Block forever
-    while True:
-        time.sleep(3600)
+        def multi_kill(sig, frame):
+            print("\n[SPAWN] Shutting down all subprocesses...")
+            for p in processes:
+                p.terminate()
+            sys.exit(0)
 
-if __name__ == "__main__":
-    main()
+        signal.signal(signal.SIGINT, multi_kill)
+        signal.signal(signal.SIGTERM, multi_kill)
+
+        while True:
+            time.sleep(1)
