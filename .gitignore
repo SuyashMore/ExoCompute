@@ -1,0 +1,28 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# IDEs/editors
+.vscode/
+.idea/
+
+# Dependency lock files (optional, depending on your strategy)
+poetry.lock
+Pipfile.lock
+
+
+# But you *can* ignore compiled or test artifacts if needed:
+*.pyc
+*.pyo
