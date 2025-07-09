@@ -35,7 +35,7 @@ async def send_task(index, a, b, client):
 async def main():
     start_time = time.time()
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=100.0) as client:
         tasks = [
             send_task(i, a, b, client)
             for i, (a, b) in enumerate(zip(arr1, arr2))

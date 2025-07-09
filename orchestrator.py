@@ -12,7 +12,7 @@ app = FastAPI()
 
 subscribers = {}
 busy_state = {}
-PORT_RANGE = list(range(9000, 9050))
+PORT_RANGE = list(range(9000, 9250))
 lock = threading.Lock()
 
 # -------------------------
@@ -68,8 +68,9 @@ def get_port():
     return JSONResponse(status_code=503, content={"error": "No ports available"})
 
 
+REDUNDANCY_FACTOR = 3
 MAX_RETRIES = 100
-RETRY_DELAY = 0.5  # in seconds
+RETRY_DELAY = 0.5  # seconds
 
 @app.post("/submit_task")
 async def submit_task(req: Request):
@@ -77,38 +78,55 @@ async def submit_task(req: Request):
     a, b = data.get("a"), data.get("b")
 
     for attempt in range(MAX_RETRIES):
-        attempted_ports = set()
+        with lock:
+            available_nodes = [
+                port for port, busy in busy_state.items()
+                if not busy
+            ]
 
-        while True:
-            with lock:
-                available_nodes = [
-                    port for port, busy in busy_state.items()
-                    if not busy and port not in attempted_ports
-                ]
+        if not available_nodes:
+            print(f"[ORCH] No subscribers available (attempt {attempt+1})")
+            await asyncio.sleep(RETRY_DELAY)
+            continue
 
-            if not available_nodes:
-                break  # No more nodes left to try in this round
+        selected_ports = available_nodes[:REDUNDANCY_FACTOR]
 
-            for port in available_nodes:
-                try:
-                    async with httpx.AsyncClient(timeout=2.0) as client:
-                        with lock:
-                            busy_state[port] = True
-                        r = await client.post(f"http://localhost:{port}/compute", json={"a": a, "b": b})
-                        result = r.json().get("result")
-                        with lock:
-                            busy_state[port] = False
-                        return {"result": result}
-                except Exception as e:
-                    print(f"[ORCH] Error with port {port}: {e}")
-                    attempted_ports.add(port)
-                    with lock:
-                        busy_state[port] = False
+        # Pre-mark as busy
+        with lock:
+            for port in selected_ports:
+                busy_state[port] = True
 
-        print(f"[ORCH] No available subscribers, retrying ({attempt+1}/{MAX_RETRIES})...")
+        tasks = [
+            asyncio.create_task(dispatch_compute(port, a, b))
+            for port in selected_ports
+        ]
+
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+        for task in pending:
+            task.cancel()
+
+        for task in done:
+            result = task.result()
+            if result is not None:
+                return {"result": result}
+
+        print(f"[ORCH] All redundancy nodes failed (attempt {attempt+1})")
         await asyncio.sleep(RETRY_DELAY)
 
-    return JSONResponse(status_code=503, content={"error": "All retries failed: No available subscribers"})
+    return JSONResponse(status_code=503, content={"error": "No available subscribers"})
+
+async def dispatch_compute(port, a, b):
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.post(f"http://localhost:{port}/compute", json={"a": a, "b": b})
+            if r.status_code == 200:
+                return r.json().get("result")
+    except Exception as e:
+        print(f"[ORCH] Dispatch error on port {port}: {e}")
+    finally:
+        with lock:
+            busy_state[port] = False
 
 
 @app.post("/unregister")
