@@ -8,8 +8,8 @@ MAX_RETRIES = 100
 RETRY_DELAY = 0.5  # Fixed delay
 JITTER_RANGE = (0.2, 0.5)
 
-array_a = [i for i in range(1, 10)]
-array_b = [i * 10 for i in range(1, 10)]
+array_a = [i for i in range(1, 200)]
+array_b = [i * 10 for i in range(1, 200)]
 
 async def send_request(session, a, b):
     for attempt in range(1, MAX_RETRIES + 1):
