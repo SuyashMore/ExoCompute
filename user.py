@@ -1,64 +1,56 @@
 import asyncio
-import httpx
 import time
-import random
-from libs.adder import Adder  # Import the actual ComputeUnit class
-from libs.sub import Sub  # Import the actual ComputeUnit class
-from libs.mul import Mul  # Import the actual ComputeUnit class
-from libs.sqr import Sqr  # Import the actual ComputeUnit class
+from functools import partial
+from exo_client import ExoCompute
+from libs.sub import Sub  # Or another ComputeUnit with Input and compute()
 
+ORCH_URL = "http://localhost:8000"
+HTTP_TIMEOUT = 30.0
 
-ORCHESTRATOR_URL = "http://localhost:8000/submit_task"
+# Initialize the ExoCompute client with your unit class
+exo = ExoCompute(ORCH_URL, Sub)
 
-arr1 = [i for i in range(50)]
-arr2 = [i * 2 for i in range(50)]
-results = [None] * len(arr1)
+# 1. Use the Input Pydantic model from the compute unit
+inputs = [Sub.Input(a=i, b=i + 1) for i in range(30)]
 
-RETRY_LIMIT = 1
-RETRY_DELAY = 1.0  # seconds
-
-UNIT_CLASS = Sqr  # Swap this to any other ComputeUnit subclass if needed
-
-async def send_task(index, a, b, client):
-    # Prepare input and serialize to dict
-    compute_input = UNIT_CLASS.Input(a=a)
-    payload = {
-        "unit": UNIT_CLASS.__name__,
-        "input": compute_input.model_dump()
-    }
-
-    for attempt in range(RETRY_LIMIT):
-        try:
-            resp = await client.post(ORCHESTRATOR_URL, json=payload)
-            data = resp.json()
-            if "result" in data:
-                print(f"[USER] ✅ {UNIT_CLASS.__name__}({a}, {b}) = {data['result']}")
-                results[index] = data["result"]
-                return
-            else:
-                print(f"[USER] ⚠️ Error {UNIT_CLASS.__name__}({a}, {b}): {data.get('error')}")
-        except Exception as e:
-            print(f"[USER] ❌ Exception {UNIT_CLASS.__name__}({a}, {b}) - {e}")
-
-        # Retry delay
-        await asyncio.sleep(RETRY_DELAY + random.uniform(0, 0.5))
-
-    print(f"[USER] ❌ Failed to compute {UNIT_CLASS.__name__}({a}, {b}) after {RETRY_LIMIT} retries")
+async def compute_with_timeout(input_obj, timeout=HTTP_TIMEOUT):
+    loop = asyncio.get_running_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, partial(exo.compute, input_obj)),
+            timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        return RuntimeError(f"Timeout after {timeout}s for input: {input_obj}")
+    except Exception as e:
+        return e
 
 async def main():
-    start_time = time.time()
+    start = time.perf_counter()
 
-    async with httpx.AsyncClient(timeout=100.0) as client:
-        tasks = [
-            send_task(i, a, b, client)
-            for i, (a, b) in enumerate(zip(arr1, arr2))
-        ]
-        await asyncio.gather(*tasks)
+    # 2. Create tasks using the .dict() form of each Input
+    tasks = [compute_with_timeout(input_obj) for input_obj in inputs]
 
-    total_time = time.time() - start_time
-    print("\n=== Summary ===")
-    print("Results:", results)
-    print(f"Total computation time: {total_time:.2f} seconds")
+    # 3. Run all tasks concurrently
+    all_results = await asyncio.gather(*tasks)
+
+    # 4. Separate successes and errors into two explicit arrays
+    successes = []
+    errors = []
+
+    for result in all_results:
+        if isinstance(result, Exception):
+            errors.append(result)
+        else:
+            successes.append(result)
+
+    duration = time.perf_counter() - start
+
+    # 5. Print summary and results
+    print(f"\n⏱️ Total time for {len(inputs)} tasks: {duration:.2f}s")
+    print(f"✅ Successes: {len(successes)}")
+    print(f"❌ Errors:    {len(errors)}\n")
+    print(f"Result:{successes}")
 
 if __name__ == "__main__":
     asyncio.run(main())
