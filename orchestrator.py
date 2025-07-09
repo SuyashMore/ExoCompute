@@ -68,65 +68,60 @@ def get_port():
     return JSONResponse(status_code=503, content={"error": "No ports available"})
 
 
-REDUNDANCY_FACTOR = 3
-MAX_RETRIES = 100
+
+RETRY_LIMIT = 100
 RETRY_DELAY = 0.5  # seconds
+REDUNDANCY_FACTOR = 4  # how many subs we ask at once
 
 @app.post("/submit_task")
 async def submit_task(req: Request):
     data = await req.json()
-    a, b = data.get("a"), data.get("b")
 
-    for attempt in range(MAX_RETRIES):
+    for attempt in range(RETRY_LIMIT):
         with lock:
-            available_nodes = [
+            available_ports = [
                 port for port, busy in busy_state.items()
                 if not busy
             ]
+            selected_ports = available_ports[:REDUNDANCY_FACTOR]
+            for port in selected_ports:
+                busy_state[port] = True  # reserve now
 
-        if not available_nodes:
-            print(f"[ORCH] No subscribers available (attempt {attempt+1})")
+        if not selected_ports:
             await asyncio.sleep(RETRY_DELAY)
             continue
 
-        selected_ports = available_nodes[:REDUNDANCY_FACTOR]
-
-        # Pre-mark as busy
-        with lock:
-            for port in selected_ports:
-                busy_state[port] = True
-
-        tasks = [
-            asyncio.create_task(dispatch_compute(port, a, b))
-            for port in selected_ports
-        ]
-
+        tasks = [asyncio.create_task(send_to_node(port, data)) for port in selected_ports]
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
         for task in pending:
-            task.cancel()
+            task.cancel()  # redundant cancel
 
-        for task in done:
-            result = task.result()
-            if result is not None:
-                return {"result": result}
+        result = list(done)[0].result()
+        if result is not None:
+            return {"result": result}
 
-        print(f"[ORCH] All redundancy nodes failed (attempt {attempt+1})")
         await asyncio.sleep(RETRY_DELAY)
 
-    return JSONResponse(status_code=503, content={"error": "No available subscribers"})
+    return JSONResponse(status_code=503, content={"error": "All retries failed or no subscribers available"})
 
-async def dispatch_compute(port, a, b):
+
+import aiohttp
+
+async def send_to_node(port, data):
+    url = f"http://localhost:{port}/compute"
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            r = await client.post(f"http://localhost:{port}/compute", json={"a": a, "b": b})
-            if r.status_code == 200:
-                return r.json().get("result")
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data, timeout=2.0) as resp:
+                r = await resp.json()
+                return r.get("result")
     except Exception as e:
-        print(f"[ORCH] Dispatch error on port {port}: {e}")
+        print(f"[ORCH] Node {port} failed: {e}")
+        return None
     finally:
         with lock:
-            busy_state[port] = False
+            busy_state[port] = False  # always release port
+
 
 
 @app.post("/unregister")
