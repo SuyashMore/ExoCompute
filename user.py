@@ -2,16 +2,16 @@ import asyncio
 import time
 from functools import partial
 from exo_client import ExoCompute
-from libs.sub import Sub  # Or another ComputeUnit with Input and compute()
+from libs.mul import Mul  # Or another ComputeUnit with Input and compute()
 
 ORCH_URL = "http://localhost:8000"
 HTTP_TIMEOUT = 30.0
 
 # Initialize the ExoCompute client with your unit class
-exo = ExoCompute(ORCH_URL, Sub)
+exo = ExoCompute(ORCH_URL, Mul)
 
 # 1. Use the Input Pydantic model from the compute unit
-inputs = [Sub.Input(a=i, b=i + 1) for i in range(30)]
+inputs = [Mul.Input(a=i, b=i + 1) for i in range(5000)]
 
 async def compute_with_timeout(input_obj, timeout=HTTP_TIMEOUT):
     loop = asyncio.get_running_loop()

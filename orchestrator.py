@@ -69,7 +69,7 @@ def get_port():
     return JSONResponse(status_code=503, content={"error": "No ports available"})
 
 RETRY_LIMIT = 100
-RETRY_DELAY = 0.5  # seconds
+RETRY_DELAY = 0.1  # seconds
 REDUNDANCY_FACTOR = 2  # how many subs we ask at once
 
 @app.post("/submit_task")

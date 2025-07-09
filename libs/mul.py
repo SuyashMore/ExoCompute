@@ -12,10 +12,4 @@ class Mul(ComputeUnit):
         result: int
 
     def compute(self, input_data: Input) -> Output:
-        start = time.time()
-        x = 0.0
-        compute_time = 1
-        while time.time() - start < compute_time:
-         # Useless math to keep the CPU busy
-            x += (input_data.a * input_data.b) ** 0.5 / (input_data.a + 1)
         return self.Output(result=input_data.a * input_data.b)
