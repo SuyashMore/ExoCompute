@@ -7,6 +7,7 @@ import httpx
 from fastapi import FastAPI, Request
 import asyncio
 from fastapi.responses import JSONResponse
+import requests
 
 app = FastAPI()
 
@@ -67,62 +68,67 @@ def get_port():
                 return {"port": port}
     return JSONResponse(status_code=503, content={"error": "No ports available"})
 
-
-
 RETRY_LIMIT = 100
 RETRY_DELAY = 0.5  # seconds
-REDUNDANCY_FACTOR = 4  # how many subs we ask at once
+REDUNDANCY_FACTOR = 2  # how many subs we ask at once
 
 @app.post("/submit_task")
 async def submit_task(req: Request):
-    data = await req.json()
+    import requests
+
+    payload = await req.json()
+    attempted_ports = set()
 
     for attempt in range(RETRY_LIMIT):
-        with lock:
-            available_ports = [
-                port for port, busy in busy_state.items()
-                if not busy
-            ]
-            selected_ports = available_ports[:REDUNDANCY_FACTOR]
-            for port in selected_ports:
-                busy_state[port] = True  # reserve now
+        ports_to_try = []
 
-        if not selected_ports:
+        with lock:
+            available_nodes = [
+                port for port, busy in busy_state.items()
+                if not busy and port not in attempted_ports
+            ]
+            if not available_nodes:
+                print(f"[ORCH] No available nodes, sleeping...")
+            else:
+                for port in available_nodes[:REDUNDANCY_FACTOR]:
+                    busy_state[port] = True  # Mark as busy immediately
+                    ports_to_try.append(port)
+
+        if not ports_to_try:
             await asyncio.sleep(RETRY_DELAY)
             continue
 
-        tasks = [asyncio.create_task(send_to_node(port, data)) for port in selected_ports]
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        tasks = []
 
-        for task in pending:
-            task.cancel()  # redundant cancel
+        for port in ports_to_try:
+            def send_to_port(p=port):  # capture port value
+                try:
+                    print(f"[ORCH] Sending task to port {p}")
+                    resp = requests.post(f"http://localhost:{p}/compute", json=payload, timeout=2.0)
+                    print(f"[ORCH] Response from port {p}: {resp.text}")
+                    return p, resp.json()
+                except Exception as e:
+                    print(f"[ORCH] Error with port {p}: {e}")
+                    return p, None
+                finally:
+                    with lock:
+                        busy_state[p] = False
 
-        result = list(done)[0].result()
-        if result is not None:
-            return {"result": result}
+            tasks.append(asyncio.create_task(asyncio.to_thread(send_to_port)))
 
+        done, _ = await asyncio.wait(tasks)
+
+        for d in done:
+            port_used, result = await d
+            attempted_ports.add(port_used)
+            if result and "result" in result:
+                print(f"[ORCH] Success from {port_used}")
+                return {"result": result["result"]}
+
+        print(f"[ORCH] Attempt {attempt + 1}/{RETRY_LIMIT} failed. Retrying...")
         await asyncio.sleep(RETRY_DELAY)
 
-    return JSONResponse(status_code=503, content={"error": "All retries failed or no subscribers available"})
-
-
-import aiohttp
-
-async def send_to_node(port, data):
-    url = f"http://localhost:{port}/compute"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data, timeout=2.0) as resp:
-                r = await resp.json()
-                return r.get("result")
-    except Exception as e:
-        print(f"[ORCH] Node {port} failed: {e}")
-        return None
-    finally:
-        with lock:
-            busy_state[port] = False  # always release port
-
-
+    return JSONResponse(status_code=503, content={"error": "No available subscribers or all failed"})
 
 @app.post("/unregister")
 def unregister_node(data: dict):

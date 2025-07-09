@@ -2,35 +2,47 @@ import asyncio
 import httpx
 import time
 import random
+from libs.adder import Adder  # Import the actual ComputeUnit class
+from libs.sub import Sub  # Import the actual ComputeUnit class
+from libs.mul import Mul  # Import the actual ComputeUnit class
+
 
 ORCHESTRATOR_URL = "http://localhost:8000/submit_task"
 
-arr1 = [i for i in range(100)]
-arr2 = [i * 2 for i in range(100)]
+arr1 = [i for i in range(50)]
+arr2 = [i * 2 for i in range(50)]
 results = [None] * len(arr1)
 
 RETRY_LIMIT = 1
 RETRY_DELAY = 1.0  # seconds
 
+UNIT_CLASS = Mul  # Swap this to any other ComputeUnit subclass if needed
+
 async def send_task(index, a, b, client):
+    # Prepare input and serialize to dict
+    compute_input = UNIT_CLASS.Input(a=a, b=b)
+    payload = {
+        "unit": UNIT_CLASS.__name__,
+        "input": compute_input.model_dump()
+    }
+
     for attempt in range(RETRY_LIMIT):
         try:
-            print("Sending request")
-            resp = await client.post(ORCHESTRATOR_URL, json={"a": a, "b": b})
+            resp = await client.post(ORCHESTRATOR_URL, json=payload)
             data = resp.json()
             if "result" in data:
-                print(f"[USER] ✅ add({a}, {b}) = {data['result']}")
+                print(f"[USER] ✅ {UNIT_CLASS.__name__}({a}, {b}) = {data['result']}")
                 results[index] = data["result"]
                 return
             else:
-                print(f"[USER] ⚠️ Error add({a}, {b}): {data.get('error')}")
+                print(f"[USER] ⚠️ Error {UNIT_CLASS.__name__}({a}, {b}): {data.get('error')}")
         except Exception as e:
-            print(f"[USER] ❌ Exception add({a}, {b}) - {e}")
+            print(f"[USER] ❌ Exception {UNIT_CLASS.__name__}({a}, {b}) - {e}")
 
         # Retry delay
         await asyncio.sleep(RETRY_DELAY + random.uniform(0, 0.5))
 
-    print(f"[USER] ❌ Failed to compute add({a}, {b}) after {RETRY_LIMIT} retries")
+    print(f"[USER] ❌ Failed to compute {UNIT_CLASS.__name__}({a}, {b}) after {RETRY_LIMIT} retries")
 
 async def main():
     start_time = time.time()

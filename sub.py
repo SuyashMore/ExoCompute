@@ -7,7 +7,9 @@ import signal
 import sys
 from fastapi import FastAPI, Request
 import uvicorn
-from lib import add_numbers as add
+from importlib import import_module
+from libs.base import ComputeUnit
+from fastapi.responses import JSONResponse
 
 # ---------------------
 # GLOBALS
@@ -23,22 +25,55 @@ heartbeat_thread = None
 # ---------------------
 app = FastAPI()
 
+
 @app.post("/compute")
-async def compute(request: Request):
-    global busy
-    data = await request.json()
-    a, b = data.get("a"), data.get("b")
-    print(f"[SUB] Received compute: add({a}, {b})")
-    busy = True
-    result = add(a, b)
-    busy = False
-    return {"result": result}
+async def compute_handler(req: Request):
+    global is_busy
+    is_busy = True
+    print("[SUB] Received /compute request")
+    try:
+        body = await req.json()
+        print(f"[SUB] Request JSON: {body}")
 
-@app.get("/health")
-def health():
-    print(f"[SUB] Health check received. Busy: {busy}")
-    return {"status": "ok", "busy": busy}
+        unit_type = body.get("unit")
+        data = body.get("input")
 
+        if not unit_type or not data:
+            print(f"[SUB] Missing 'unit' or 'input' in payload: unit={unit_type}, input={data}")
+            return JSONResponse(content={"error": "Missing 'unit' or 'input'"}, status_code=400)
+
+        try:
+            module = import_module(f"libs.{unit_type.lower()}")
+            unit_class: type[ComputeUnit] = getattr(module, unit_type)
+            print(f"[SUB] Successfully imported: libs.{unit_type.lower()} and found class {unit_type}")
+        except Exception as e:
+            print(f"[SUB] Import failed for unit '{unit_type}': {e}")
+            return JSONResponse(content={"error": f"Invalid compute unit '{unit_type}': {e}"}, status_code=400)
+
+        try:
+            input_obj = unit_class.Input(**data)
+            print(f"[SUB] Successfully parsed input: {input_obj}")
+        except Exception as e:
+            print(f"[SUB] Failed to parse input: {e}")
+            return JSONResponse(content={"error": f"Failed to parse input for '{unit_type}': {e}"}, status_code=400)
+
+        try:
+            unit_instance = unit_class()
+            print(f"[SUB] Instantiated unit class: {unit_instance}")
+            output_obj = unit_instance.compute(input_obj)
+            print(f"[SUB] Computation successful: {output_obj}")
+            return JSONResponse(content=output_obj.dict())
+        except Exception as e:
+            print(f"[SUB] Exception during compute(): {e}")
+            return JSONResponse(content={"error": f"Failed to compute: {e}"}, status_code=500)
+
+    except Exception as e:
+        print(f"[SUB] Unexpected failure in /compute handler: {e}")
+        return JSONResponse(content={"error": f"Unexpected error: {e}"}, status_code=500)
+
+    finally:
+        is_busy = False
+        print("[SUB] Marked as not busy")
 
 # ---------------------
 # REGISTRATION
@@ -102,6 +137,10 @@ def start_subscriber():
     heartbeat_thread.start()
 
     uvicorn.run(app, host="0.0.0.0", port=assigned_port)
+
+@app.get("/health")
+def health():
+    return {"busy": busy}
 
 
 # ---------------------
