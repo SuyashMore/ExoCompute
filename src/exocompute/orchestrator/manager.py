@@ -1,46 +1,64 @@
-import threading
+import asyncio
 import time
-import requests
+import httpx
 
 class NodeManager:
     def __init__(self, port_range_start=9000, port_range_end=9250):
         self.subscribers = {}  # port -> last_seen_timestamp
         self.busy_state = {}   # port -> bool
         self.port_range = list(range(port_range_start, port_range_end))
-        self.lock = threading.Lock()
+        self.lock = asyncio.Lock()
         self.shutdown_flag = False
-        self.health_thread = None
+        self.health_task = None
 
     def start_health_check(self):
-        self.health_thread = threading.Thread(target=self._health_check_loop, daemon=True)
-        self.health_thread.start()
+        self.health_task = asyncio.create_task(self._health_check_loop())
 
     def stop_health_check(self):
         self.shutdown_flag = True
+        if self.health_task:
+            self.health_task.cancel()
 
-    def _health_check_loop(self):
-        while not self.shutdown_flag:
-            with self.lock:
-                to_remove = []
-                for port, last_seen in list(self.subscribers.items()):
-                    try:
-                        r = requests.get(f"http://localhost:{port}/health", timeout=1)
-                        is_busy = r.json().get("busy", False)
-                        self.busy_state[port] = is_busy
-                    except:
-                        print(f"[ORCH] Node on port {port} is down")
-                        to_remove.append(port)
-                for port in to_remove:
-                    self._remove_subscriber(port)
-            time.sleep(3)
+    async def _health_check_loop(self):
+        async with httpx.AsyncClient() as client:
+            while not self.shutdown_flag:
+                try:
+                    # Snapshot subscribers to avoid holding lock during network calls
+                    async with self.lock:
+                        current_subscribers = list(self.subscribers.items())
+
+                    to_remove = []
+                    for port, last_seen in current_subscribers:
+                        try:
+                            r = await client.get(f"http://localhost:{port}/health", timeout=1.0)
+                            is_busy = r.json().get("busy", False)
+                            async with self.lock:
+                                if port in self.subscribers: # Check if still exists
+                                    self.busy_state[port] = is_busy
+                        except Exception as e:
+                            print(f"[ORCH] Node on port {port} is down: {e}")
+                            to_remove.append(port)
+                    
+                    if to_remove:
+                        async with self.lock:
+                            for port in to_remove:
+                                self._remove_subscriber(port)
+
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    print(f"[ORCH] Health check error: {e}")
+                
+                await asyncio.sleep(3)
 
     def _remove_subscriber(self, port):
+        # Internal helper, assumes lock is held
         if port in self.subscribers:
             del self.subscribers[port]
         self.busy_state.pop(port, None)
 
-    def get_available_port(self):
-        with self.lock:
+    async def get_available_port(self):
+        async with self.lock:
             for port in self.port_range:
                 if port not in self.subscribers:
                     self.subscribers[port] = time.time()
@@ -49,25 +67,25 @@ class NodeManager:
                     return port
         return None
 
-    def unregister_node(self, port):
-        with self.lock:
+    async def unregister_node(self, port):
+        async with self.lock:
             if port in self.subscribers:
                 self._remove_subscriber(port)
                 print(f"[ORCH] Port {port} unregistered")
 
-    def heartbeat(self, port):
-        with self.lock:
+    async def heartbeat(self, port):
+        async with self.lock:
             if port in self.subscribers:
                 self.subscribers[port] = time.time()
 
-    def get_nodes(self):
-        with self.lock:
+    async def get_nodes(self):
+        async with self.lock:
             return self.busy_state.copy()
 
-    def mark_busy(self, port):
-        with self.lock:
+    async def mark_busy(self, port):
+        async with self.lock:
             self.busy_state[port] = True
 
-    def mark_free(self, port):
-        with self.lock:
+    async def mark_free(self, port):
+        async with self.lock:
             self.busy_state[port] = False
