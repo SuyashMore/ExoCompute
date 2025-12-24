@@ -1,71 +1,93 @@
-# Distributed Compute Prototype
+# ExoCompute - Distributed Compute Grid
 
-Welcome to the **Distributed Compute Grid** prototype — a proof-of-concept for a decentralized computation network, where lightweight nodes subscribe to a central orchestrator and perform tasks on-demand.
+Welcome to the **ExoCompute** prototype — a proof-of-concept for a decentralized computation network, where lightweight nodes subscribe to a central orchestrator and perform tasks on-demand.
 
 > Think: a minimal version of Kubernetes meets BOINC, powered by Python + FastAPI.
 
 ---
 
-## ⚙️ How It Works
+## ⚙️ Modular Architecture
 
-- **`orchestrator.py`**: Acts as the central brain. Manages node health, assigns compute, and tracks busy/free state.
-- **`sub.py`**: Launches one or more compute nodes that register with the orchestrator and perform calculations.
-- **`user.py`**: Sends compute requests to the orchestrator, which distributes work to healthy subscribers.
-- **`lib.py`**: Contains the core compute logic (e.g. `add(a, b)`), with artificial CPU load to simulate heavy tasks.
+The project has been refactored into a specific python package `exocompute`:
+
+- **`src/exocompute/orchestrator`**: The central brain.
+    - `server.py`: FastAPI application.
+    - `manager.py`: Manages node health and busy/free state.
+    - `scheduler.py`: Distributes tasks to available nodes.
+- **`src/exocompute/subscriber`**: The compute nodes.
+    - `core.py`: Subscriber logic (registration, heartbeat).
+    - `server.py`: FastAPI node server.
+- **`src/exocompute/client`**: Client library for connecting to the grid.
+- **`user.py`**: Example user script that submits tasks.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone and Setup
+### 1. Setup
 ```bash
+# Clone and enter directory
 git clone https://github.com/yourname/distributed-compute-prototype.git
 cd distributed-compute-prototype
 
-# Setup virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Start the Orchestrator
+### 2. Start Services
+Since the project is now a package, you should run modules using `-m`.
+
+**Terminal 1: Start Orchestrator**
 ```bash
-python orchestrator.py
+# Ensure src is in PYTHONPATH if not installed as editable
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python3 -m exocompute.orchestrator
 ```
 
-### 3. Launch Subscribers
+**Terminal 2: Start Subscribers**
 ```bash
-# Launch 5 subscriber nodes in parallel
-python sub.py --count 5
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+# Launch 1 subscriber
+python3 -m exocompute.subscriber --count 1
 ```
 
-### 4. Run a User Program
+### 3. Run Compute Task
+**Terminal 3: User Script**
 ```bash
-python user.py
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python3 user.py
+```
+
+---
+
+## 🧪 Testing
+
+We have a robust test suite covering unit logic and full system integration.
+
+**Run Unit Tests:**
+```bash
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python3 -m unittest discover tests/unit
+```
+
+**Run Integration Tests:**
+```bash
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python3 -m unittest tests/integration/test_system.py
 ```
 
 ---
 
 ## 🧠 Features
 
-- 🔁 **Retry logic**: User requests auto-retry failed elements with random backoff
-- 🧍 **Idle/busy tracking**: Orchestrator ensures load-balanced scheduling
-- 🔥 **CPU load simulation**: No fake sleeps — real math-heavy loops burn CPU per task
-- 💀 **Health checks**: Dead nodes are booted and ports reclaimed
-- 🧪 **Mass testing**: Spin up 100+ nodes easily for scale experiments
-
----
-
-## 🧪 Benchmarking
-
-### Ideal Target Time (with 4 healthy subs):
-| Elements | Ideal Time  |
-|----------|-------------|
-| 16       | ~4.0–5.0s   |
-| 8        | ~2.0–2.5s   |
-| 1        | ~1.0s       |
+- � **Resilient Scheduling**: Tasks are retried if nodes fail or are busy.
+- � **Dynamic Registry**: Nodes register/unregister dynamically.
+- 🔥 **Modular Units**: Compute logic is pluggable via `libs`.
+- 🧪 **Test Coverage**: End-to-end integration tests ensures stability.
 
 ---
 
@@ -73,33 +95,19 @@ python user.py
 
 ```
 .
-├── orchestrator.py     # Central task manager
-├── sub.py              # Spawns compute nodes (subscribers)
-├── user.py             # Sends compute requests
-├── lib.py              # Compute logic with real CPU burn
-├── requirements.txt    # Python dependencies
-├── README.md           # You're reading it
+├── src/
+│   └── exocompute/
+│       ├── orchestrator/   # Node Management & Scheduling
+│       ├── subscriber/     # Compute Node Logic
+│       ├── client/         # Client SDK
+│       └── libs/           # Compute Units (Mul, Add, etc.)
+├── tests/
+│   ├── unit/              # Component tests
+│   └── integration/       # End-to-end usage tests
+├── user.py                # Usage example
+├── requirements.txt
+└── README.md
 ```
-
----
-
-## 🤔 What’s Next?
-
-- [ ] Async orchestration for concurrency
-- [ ] Multi-threaded compute engine
-- [ ] Persistent node registry
-- [ ] Credit system & resource market
-- [ ] Fault-tolerant request replication
-- [ ] UI dashboard for node status
-
----
-
-## 🧠 Idea Behind This
-
-Build an **elastic grid compute layer** that lets users:
-- Borrow compute in exchange for credits
-- Lend idle cores and earn passive credits
-- Run workloads across a P2P-style network
 
 ---
 
