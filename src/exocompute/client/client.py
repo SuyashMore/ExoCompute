@@ -1,8 +1,6 @@
-# exo_client.py
-
 import requests
 from typing import Type
-from libs.base import ComputeInput
+from exocompute.libs.base import ComputeInput
 
 class ExoCompute:
     def __init__(self, orchestrator_url: str, compute_unit: Type):
@@ -21,7 +19,7 @@ class ExoCompute:
             resp = requests.post(f"{self.orchestrator_url}/submit_task", json=payload, timeout=30.0)
             resp.raise_for_status()
             result = resp.json()
-            print(f"[ExoCompute] Response: {result}")
+            # print(f"[ExoCompute] Response: {result}") # Optional verbose logging
             if "result" not in result:
                 raise Exception(f"Missing 'result' key in response: {result}")
             return result["result"]

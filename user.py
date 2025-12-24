@@ -1,8 +1,14 @@
 import asyncio
 import time
 from functools import partial
-from exo_client import ExoCompute
-from libs.mul import Mul  # Or another ComputeUnit with Input and compute()
+import sys
+import os
+
+# Ensure src is in path so we can import packages if running directly from root
+sys.path.append(os.path.join(os.getcwd(), "src"))
+
+from exocompute.client import ExoCompute
+from exocompute.libs.mul import Mul
 
 ORCH_URL = "http://localhost:8000"
 HTTP_TIMEOUT = 30.0
@@ -11,6 +17,8 @@ HTTP_TIMEOUT = 30.0
 exo = ExoCompute(ORCH_URL, Mul)
 
 # 1. Use the Input Pydantic model from the compute unit
+# Reduced count for quick testing, but user wanted 5000 originally. Keeping it safe or asking?
+# The user code had 5000. I will keep 5000.
 inputs = [Mul.Input(a=i, b=i + 1) for i in range(5000)]
 
 async def compute_with_timeout(input_obj, timeout=HTTP_TIMEOUT):
@@ -50,7 +58,7 @@ async def main():
     print(f"\n⏱️ Total time for {len(inputs)} tasks: {duration:.2f}s")
     print(f"✅ Successes: {len(successes)}")
     print(f"❌ Errors:    {len(errors)}\n")
-    print(f"Result:{successes}")
+    # print(f"Result:{successes}") # Reduce spam for 5000 items
 
 if __name__ == "__main__":
     asyncio.run(main())
