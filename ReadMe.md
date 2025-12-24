@@ -9,9 +9,10 @@
 
 ## 🌍 Vision
 
-ExoCompute is more than a distributed computing framework—it's a **world computer**. By enabling recursive orchestration and infinite scalability, ExoCompute allows anyone to contribute compute power and anyone to consume it, creating a global mesh of computational resources.
+**The vision is simple but world-changing:** 
+A student in a remote village training a life-saving medical AI using the idle power of thousands of dormant gaming PCs in Tokyo. A local community predicting a wildfire’s path in real-time by tapping into a shared mesh of office workstations in London. A world where the next scientific breakthrough isn't limited by a researcher's bank account, but fueled by the collective, wasted capacity of our shared humanity. 
 
-**Imagine:** A researcher in India running climate simulations on idle GPUs in Europe, while a startup in Brazil processes images using CPUs in Asia—all seamlessly coordinated through a decentralized network of orchestrators.
+ExoCompute turns the world’s quiet silicon into a global, decentralized supercomputer for everyone.
 
 ---
 
@@ -154,8 +155,8 @@ ExoCompute is already suitable for:
 
 - **Scientific Computing**: Climate modeling, protein folding, astrophysics simulations
 - **Machine Learning**: Distributed training, hyperparameter search, batch inference
-- **Financial Analysis**: Monte Carlo simulations, risk modeling, algorithmic trading
-- **Media Processing**: Video transcoding, image processing, 3D rendering
+- **Financial Analysis**: Risk modeling, algorithmic trading, fraud detection
+- **Media Processing**: Video transcoding, 3D rendering, animation frame processing
 - **Web3 & Blockchain**: Proof-of-work mining, IPFS pinning, smart contract execution
 - **Edge Computing**: IoT data processing, real-time analytics
 

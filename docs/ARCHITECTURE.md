@@ -317,8 +317,6 @@ def process_compute(unit_type: str, data: dict):
 ```python
 module_map = {
     'MatrixMultiplyUnit': 'matrix_ops',
-    'PiEstimationUnit': 'monte_carlo',
-    'GaussianBlurUnit': 'image_ops',
     # Fallback: use lowercase(unit_name) as module name
 }
 ```

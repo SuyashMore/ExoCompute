@@ -10,13 +10,13 @@ ExoCompute is not just another distributed computing framework—it's the founda
 
 A **World Computer** is a unified, planet-scale computational infrastructure where:
 
-1. **Anyone can contribute** idle compute resources (CPU, GPU, storage)
-2. **Anyone can consume** computational power on-demand
-3. **Orchestrators coordinate** globally without central control
-4. **Tasks flow** to the most efficient nodes automatically
-5. **Economic incentives** reward contributors and penalize bad actors
+1. **Anyone can contribute** quiet, wasted compute resources (the laptop on your desk, the server in your office)
+2. **Anyone can consume** supercomputer-level power, regardless of their geography or budget
+3. **Orchestrators coordinate** as a living, breathing mesh without central gatekeepers
+4. **Tasks flow** like water to where they are needed most, automatically
+5. **Humanity wins** by solving problems that were previously "too expensive" to touch
 
-**ExoCompute** provides the technical foundation for this vision through **recursive orchestration**.
+**ExoCompute** is the bridge between millions of idle devices and the world’s most urgent challenges.
 
 ---
 
@@ -119,48 +119,17 @@ class GradientComputeUnit(ComputeUnit):
 
 ---
 
-### 3. **Financial Services**
-
-#### High-Frequency Risk Analysis
-```python
-class MonteCarloRiskUnit(ComputeUnit):
-    class Input(ComputeInput):
-        portfolio: List[dict]
-        num_simulations: int
-        market_scenarios: List[dict]
-    
-    class Output(ComputeOutput):
-        var_95: float  # Value at Risk (95% confidence)
-        expected_loss: float
-        extreme_scenarios: List[dict]
-```
-
-**Impact:** Run **1 billion Monte Carlo simulations** in seconds for real-time risk assessment.
-
 ---
 
-### 4. **Media & Entertainment**
+### 3. **Media & Entertainment**
 
 #### Distributed Video Rendering
 - Each node renders 1 second of 4K video
 - **Example:** 2-hour movie (7200 seconds) rendered in **7 seconds** with 1000 nodes
-  
-#### Real-Time Image Processing
-```python
-class BatchImageEnhanceUnit(ComputeUnit):
-    class Input(ComputeInput):
-        images: List[bytes]  # Base64 encoded
-        enhancement_type: str  # "upscale", "denoise", "colorize"
-    
-    class Output(ComputeOutput):
-        processed_images: List[bytes]
-```
-
-**Use Case:** Process 1 million user photos in **under 1 minute**.
 
 ---
 
-### 5. **Web3 & Decentralized Systems**
+### 4. **Web3 & Decentralized Systems**
 
 #### Proof-of-Useful-Work
 Instead of wasteful Bitcoin mining, contributors earn by:
@@ -184,7 +153,7 @@ Distribute file pinning across global nodes for decentralized storage.
 
 ---
 
-### 6. **Edge Computing & IoT**
+### 5. **Edge Computing & IoT**
 
 #### Real-Time Analytics at the Edge
 ```
@@ -201,7 +170,7 @@ Distribute file pinning across global nodes for decentralized storage.
 
 ---
 
-### 7. **Gaming & Metaverse**
+### 6. **Gaming & Metaverse**
 
 #### Distributed Physics Simulation
 - Each node simulates a region of virtual world
@@ -230,7 +199,7 @@ class TerrainGenerationUnit(ComputeUnit):
 ### Current Implementation
 - ✅ Core orchestrator/subscriber architecture
 - ✅ Recursive orchestration support
-- ✅ Basic compute units (math, matrix, monte carlo)
+- ✅ Basic compute units (math, matrix)
 - ✅ Testing framework
 
 ### Future Scope - Production Hardening
@@ -504,14 +473,14 @@ class FederatedModelUnit(ComputeUnit):
 
 ## 🎬 Conclusion
 
-ExoCompute is more than code—it's a **movement** toward democratized, decentralized, and sustainable computing.
+ExoCompute is more than code—it's a **declaration** that computational power is a fundamental human resource that should be shared, not monopolized.
 
 **The vision:**
-- A high school student in Nigeria runs climate models on GPUs in California
-- A startup in Indonesia trains ML models on idle CPUs across Europe
-- A researcher in Brazil discovers new materials using compute from 50,000 home computers worldwide
+- **Democratized Science:** A high schooler in Nigeria runs complex climate models on idle GPUs in California to save their local coastline.
+- **Inclusive Innovation:** A bootstrap startup in Indonesia trains life-saving medical models using the quiet CPUs of dormant office clusters across Europe.
+- **Global Solidarity:** A researcher in Brazil discovers new sustainable materials by tapping into the collective power of 50,000 home computers worldwide.
 
-**This is the World Computer. This is ExoCompute.**
+**This isn't just a grid. This is the World Computer. This is ExoCompute.**
 
 ---
 
