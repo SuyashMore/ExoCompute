@@ -25,7 +25,6 @@ class TaskScheduler:
                 ]
 
                 if not available_nodes:
-                    # print(f"[ORCH] No available nodes, sleeping...")
                     pass
                 else:
                     # Naive selection: pick first N
@@ -49,23 +48,19 @@ class TaskScheduler:
                 for d in done:
                     port_used, result = await d
                     attempted_ports.add(port_used)
-                    if result and "result" in result:
-                        print(f"[ORCH] Success from {port_used}")
-                        return {"result": result["result"]}
+                    # Accept any valid dict result
+                    if result and isinstance(result, dict):
+                        return {"result": result}
 
-                print(f"[ORCH] Attempt {attempt + 1}/{self.retry_limit} failed. Retrying...")
                 await asyncio.sleep(self.retry_delay)
 
             raise Exception("No available subscribers or all failed")
 
     async def _send_to_port(self, client, port, payload):
         try:
-            print(f"[ORCH] Sending task to port {port}")
             resp = await client.post(f"http://localhost:{port}/compute", json=payload, timeout=2.0)
-            print(f"[ORCH] Response from port {port}: {resp.text}")
             return port, resp.json()
         except Exception as e:
-            print(f"[ORCH] Error with port {port}: {e}")
             return port, None
         finally:
             await self.node_manager.mark_free(port)

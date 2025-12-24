@@ -11,15 +11,14 @@ class ExoCompute:
     def compute(self, input_data: ComputeInput) -> dict:
         payload = {
             "unit": self.unit_name,
-            "input": input_data.dict(),
+            "input": input_data.model_dump(),
         }
 
         try:
-            print(f"[ExoCompute] Sending: {payload}")
             resp = requests.post(f"{self.orchestrator_url}/submit_task", json=payload, timeout=30.0)
             resp.raise_for_status()
             result = resp.json()
-            # print(f"[ExoCompute] Response: {result}") # Optional verbose logging
+            
             if "result" not in result:
                 raise Exception(f"Missing 'result' key in response: {result}")
             return result["result"]

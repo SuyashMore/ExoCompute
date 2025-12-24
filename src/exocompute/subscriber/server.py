@@ -19,16 +19,6 @@ signal.signal(signal.SIGTERM, handle_exit)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Registration happens in the start wrapper usually, 
-    # but if we run this app directly, we might want to register here?
-    # For now, we assume registration is done before running uvicorn
-    # or inside the wrapper. 
-    # Let's keep the node logic consistent:
-    # If we are running via the wrapper, registration is done.
-    # If we restart uvicorn, we might lose the port if not careful.
-    
-    # Actually, the original code had manual uvicorn.run call.
-    # We'll stick to that pattern in the wrapper.
     if node.assigned_port:
         node.start_heartbeat()
     yield
@@ -39,7 +29,6 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/compute")
 async def compute_handler(req: Request):
-    print("[SUB] Received /compute request")
     try:
         body = await req.json()
         unit_type = body.get("unit")
@@ -54,7 +43,6 @@ async def compute_handler(req: Request):
     except ValueError as e:
          return JSONResponse(content={"error": str(e)}, status_code=400)
     except Exception as e:
-        print(f"[SUB] Unexpected failure: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/health")

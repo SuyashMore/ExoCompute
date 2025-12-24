@@ -55,9 +55,26 @@ class SubscriberNode:
     def process_compute(self, unit_type: str, data: dict):
         self.busy = True
         try:
+            # Module mapping for compute units in different files
+            module_map = {
+                'MatrixMultiplyUnit': 'matrix_ops',
+                'MatrixInverseUnit': 'matrix_ops',
+                'EigenvalueUnit': 'matrix_ops',
+                'MatrixSVDUnit': 'matrix_ops',
+                'PiEstimationUnit': 'monte_carlo',
+                'OptionPricingUnit': 'monte_carlo',
+                'RandomWalkUnit': 'monte_carlo',
+                'GaussianBlurUnit': 'image_ops',
+                'EdgeDetectionUnit': 'image_ops',
+                'ImageRotateUnit': 'image_ops',
+                'HistogramEqualizationUnit': 'image_ops',
+            }
+            
             # Dynamic import from exocompute.libs
             try:
-                module = import_module(f"exocompute.libs.{unit_type.lower()}")
+                # Try module mapping first, fall back to lowercase unit name
+                module_name = module_map.get(unit_type, unit_type.lower())
+                module = import_module(f"exocompute.libs.{module_name}")
                 unit_class: type[ComputeUnit] = getattr(module, unit_type)
             except Exception as e:
                 raise ValueError(f"Invalid compute unit '{unit_type}': {e}")
@@ -70,7 +87,8 @@ class SubscriberNode:
             try:
                 unit_instance = unit_class()
                 output_obj = unit_instance.compute(input_obj)
-                return output_obj.dict()
+                # Use model_dump() for Pydantic v2
+                return output_obj.model_dump()
             except Exception as e:
                 raise RuntimeError(f"Failed to compute: {e}")
 
