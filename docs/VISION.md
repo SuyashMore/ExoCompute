@@ -66,6 +66,20 @@ A **World Computer** is a unified, planet-scale computational infrastructure whe
 
 ---
 
+## 🧬 Recursive Computation: Infinite Depth
+
+While **Recursive Orchestration** handles the infinite scaling of nodes, **Recursive Computation** handles the infinite complexity of tasks.
+
+### Breaking the Ceiling of Complexity
+In ExoCompute, a `ComputeUnit` is not a terminal point. It can encompass other `ComputeUnits`. This means:
+1. **Biological-Scale Modeling**: A "Heart Simulation" unit can house thousands of "Cell Simulation" units, which in turn house "Protein Folding" units.
+2. **Fractal Decomposition**: A complex problem can automatically break itself down into smaller versions of itself until it reaches a solvable atomic state.
+3. **Infinite Depth**: As long as the global grid has available resources, there is no limit to how deep your computational tree can grow.
+
+**ExoCompute doesn't just scale horizontally (nodes); it scales vertically (logic).**
+
+---
+
 ## 🚀 Practical Applications
 
 ### 1. **Scientific Computing**

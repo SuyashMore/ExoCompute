@@ -408,6 +408,43 @@ class MyCustomUnit(ComputeUnit):
 
 ---
 
+### 🧬 Recursive Compute Unit Example
+You can trigger other compute units from within a `compute()` method to achieve infinite depth.
+
+```python
+from exocompute.client import ExoCompute
+from exocompute.libs.base import ComputeUnit, ComputeInput, ComputeOutput
+from exocompute.libs.mul import Mul
+
+class PowerUnit(ComputeUnit):
+    """Calculates n^p by recursively calling the Mul unit."""
+    
+    class Input(ComputeInput):
+        n: int
+        p: int
+    
+    class Output(ComputeOutput):
+        result: int
+    
+    def compute(self, input_data: Input) -> Output:
+        if input_data.p == 0:
+            return self.Output(result=1)
+        
+        # Instantiate client to delegate sub-task
+        # Pointing back to local orchestrator for internal delegation
+        exo = ExoCompute("http://localhost:8000", Mul)
+        
+        # Note: This is a conceptual example of computational recursion
+        current_res = input_data.n
+        for _ in range(input_data.p - 1):
+            temp = exo.compute(Mul.Input(a=current_res, b=input_data.n))
+            current_res = temp["result"]
+            
+        return self.Output(result=current_res)
+```
+
+---
+
 ## 🔧 Configuration
 
 ### Environment Variables

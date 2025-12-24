@@ -57,6 +57,12 @@ class MyCustomUnit(ComputeUnit):
 
 The framework handles everything else—distribution, scheduling, retries, and results aggregation.
 
+### 🧬 **Recursive Compute Power**
+Compute units aren't just isolated logic blocks—they are **nestable**. A compute unit can house, trigger, and coordinate other compute units. This creates "infinite depth" computation:
+- **Task Nesting**: Large tasks can spawn sub-tasks that run on other nodes.
+- **Infinite Complexity**: Provided there are resources in the grid, the depth of your logic is unlimited.
+- **Fractal Computation**: Compute logic that scales automatically by dividing itself.
+
 ---
 
 ## 🚀 Quick Start
