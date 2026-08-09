@@ -105,4 +105,4 @@ See `requirements.txt` for pinned versions.
 
 ## License
 
-MIT — see [LICENSE](LICENSE) if present, or the badge above.
+MIT — no LICENSE file is currently checked into the repo; the badge above reflects the intended license. Add a `LICENSE` file to make it official.
